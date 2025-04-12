@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remove Backgrounds in Seconds</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap">
+  <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --text-color: #f8fafc;
+      --container-bg: #1e293b;
+      --spinner-bg: #334155;
+      --spinner-color: #3b82f6;
+      --upload-bg: #3b82f6;
+      --upload-hover: #2563eb;
+      --download-bg: #10b981;
+    }
+
+    body.light {
+      --bg-color: #ffffff;
+      --text-color: #1f2937;
+      --container-bg: #f9fafb;
+      --spinner-bg: #e5e7eb;
+      --spinner-color: #2563eb;
+      --upload-bg: #3b82f6;
+      --upload-hover: #1d4ed8;
+      --download-bg: #059669;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      font-weight: 700;
+      text-align: center;
+    }
+    p {
+      color: var(--text-color);
+      opacity: 0.8;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .container {
+      background-color: var(--container-bg);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    label.upload-label {
+      background-color: var(--upload-bg);
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      transition: background-color 0.3s;
+    }
+    label.upload-label:hover {
+      background-color: var(--upload-hover);
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      margin-top: 1rem;
+      border-radius: 8px;
+      background: repeating-conic-gradient(var(--container-bg) 0% 25%, #334155 0% 50%) 50% / 20px 20px;
+    }
+    .spinner {
+      border: 4px solid var(--spinner-bg);
+      border-top: 4px solid var(--spinner-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 1.5rem auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .download-btn {
+      margin-top: 1.5rem;
+      background-color: var(--download-bg);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .mode-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background-color: transparent;
+      border: 2px solid var(--text-color);
+      color: var(--text-color);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s, color 0.3s;
+      z-index: 1000;
+    }
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+      .container {
+        padding: 1.5rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      label.upload-label {
+        padding: 0.75rem 1.5rem;
+      }
+      .download-btn {
+        padding: 0.5rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="dark">
+  <button class="mode-toggle" onclick="toggleMode()"><span id="modeIcon">🌙</span> Toggle Mode</button>
+  <h1>Remove Backgrounds in Seconds</h1>
+  <p>Upload an image, and we'll handle the background for you instantly.</p>
+  <div class="container">
+    <label for="fileInput" class="upload-label">Upload Image</label>
+    <input type="file" id="fileInput" accept="image/*">
+    <div id="loader" class="spinner" style="display: none;"></div>
+    <img id="resultImage" style="display: none;" alt="Processed image">
+    <a id="downloadLink" class="download-btn" href="#" download="no-bg.png" style="display: none;">Download Image</a>
+    <button id="cropButton" class="download-btn" style="display: none;">Crop Image</button>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const loader = document.getElementById('loader');
+    const resultImage = document.getElementById('resultImage');
+    const downloadLink = document.getElementById('downloadLink');
+    const cropButton = document.getElementById('cropButton');
+    const modeIcon = document.getElementById('modeIcon');
+
+    let cropper;
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      loader.style.display = 'block';
+      resultImage.style.display = 'none';
+      downloadLink.style.display = 'none';
+      cropButton.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/remove-bg', {
+          method: 'POST',
+          body: formData
+        });
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        resultImage.src = url;
+        resultImage.onload = () => {
+          if (cropper) cropper.destroy();
+          cropper = new Cropper(resultImage, {
+            viewMode: 1,
+            aspectRatio: NaN,
+            background: false,
+            autoCropArea: 1,
+          });
+        };
+        resultImage.style.display = 'block';
+        downloadLink.href = url;
+        downloadLink.style.display = 'inline-block';
+        cropButton.style.display = 'inline-block';
+      } catch (error) {
+        alert('Error removing background.');
+        console.error(error);
+      } finally {
+        loader.style.display = 'none';
+      }
+    });
+
+    cropButton.addEventListener('click', () => {
+      if (!cropper) return;
+      const canvas = cropper.getCroppedCanvas();
+      resultImage.src = canvas.toDataURL();
+      cropper.destroy();
+      cropper = null;
+
+      canvas.toBlob((blob) => {
+        const newUrl = URL.createObjectURL(blob);
+        downloadLink.href = newUrl;
+      });
+    });
+
+    function toggleMode() {
+      document.body.classList.toggle('light');
+      modeIcon.textContent = document.body.classList.contains('light') ? '🌞' : '🌙';
+    }
+  </script>
+</body>
+</html>
+
+
+
+
+
